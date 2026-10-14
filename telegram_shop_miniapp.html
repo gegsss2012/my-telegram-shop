@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ka">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ჩემი მაღაზია</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root { color-scheme: light dark; --blue:#2481cc; --bg:var(--tg-theme-bg-color,#f4f6f8); --card:var(--tg-theme-secondary-bg-color,#fff); --text:var(--tg-theme-text-color,#17212b); --muted:var(--tg-theme-hint-color,#6b7280); }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--text); font:16px/1.4 system-ui,-apple-system,sans-serif; }
+    header { padding:20px 16px 12px; position:sticky; top:0; background:var(--bg); z-index:2; }
+    h1 { font-size:24px; margin:0 0 12px; }
+    .search { width:100%; border:0; outline:0; border-radius:12px; padding:13px 14px; background:var(--card); color:var(--text); font-size:16px; }
+    .categories { display:flex; gap:8px; overflow:auto; padding:4px 16px 14px; }
+    .chip { white-space:nowrap; border:0; border-radius:999px; padding:9px 13px; background:var(--card); color:var(--text); }
+    .chip.active { background:var(--blue); color:white; }
+    .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; padding:0 12px 110px; }
+    .product { min-width:0; border-radius:16px; overflow:hidden; background:var(--card); }
+    .photo { aspect-ratio:1/1; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,#e8f2fc,#f6f8fb); font-size:58px; }
+    .details { padding:12px; }
+    .name { font-weight:650; margin-bottom:4px; }
+    .desc { color:var(--muted); font-size:12px; min-height:17px; }
+    .price { font-weight:750; margin:10px 0; }
+    button { cursor:pointer; font:inherit; }
+    .add { width:100%; border:0; border-radius:10px; background:var(--blue); color:white; padding:10px 8px; font-weight:650; }
+    .bottom { position:fixed; bottom:0; left:0; right:0; padding:12px 16px calc(12px + env(safe-area-inset-bottom)); background:var(--bg); border-top:1px solid rgba(127,127,127,.2); }
+    .cartbtn { width:100%; border:0; border-radius:14px; background:var(--blue); color:#fff; padding:14px; font-weight:700; display:flex; justify-content:space-between; }
+    .empty { grid-column:1/-1; color:var(--muted); text-align:center; padding:40px 10px; }
+    .note { font-size:12px; color:var(--muted); text-align:center; padding:10px 18px 0; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🛍️ ჩემი მაღაზია</h1>
+    <input id="search" class="search" placeholder="მოძებნე ნივთი..." aria-label="მოძებნე ნივთი">
+  </header>
+  <nav class="categories" id="categories" aria-label="კატეგორიები"></nav>
+  <main class="grid" id="products"></main>
+  <div class="bottom">
+    <button class="cartbtn" id="cartButton"><span>🛒 კალათა (<span id="count">0</span>)</span><span id="total">0 ₾</span></button>
+    <div class="note">სატესტო მაღაზია — პროდუქტები მაგალითისთვისაა.</div>
+  </div>
+<script>
+  const products = [
+    {id:1,name:"ყურსასმენები",category:"ტექნიკა",price:35,emoji:"🎧",desc:"უსადენო ყურსასმენები"},
+    {id:2,name:"ზურგჩანთა",category:"აქსესუარები",price:45,emoji:"🎒",desc:"ყოველდღიური გამოყენებისთვის"},
+    {id:3,name:"საათი",category:"აქსესუარები",price:50,emoji:"⌚",desc:"მინიმალისტური დიზაინი"},
+    {id:4,name:"სპორტული ფეხსაცმელი",category:"ტანსაცმელი",price:90,emoji:"👟",desc:"კომფორტული მოდელი"},
+    {id:5,name:"მაისური",category:"ტანსაცმელი",price:25,emoji:"👕",desc:"ყოველდღიური სტილი"},
+    {id:6,name:"დინამიკი",category:"ტექნიკა",price:60,emoji:"🔊",desc:"პორტატული დინამიკი"}
+  ];
+  const cart = new Map();
+  let activeCategory = "ყველა";
+  const tg = window.Telegram?.WebApp;
+  if (tg) { tg.ready(); tg.expand(); }
+  const categories = ["ყველა", ...new Set(products.map(p=>p.category))];
+
+  function renderCategories() {
+    document.getElementById("categories").innerHTML = categories.map(c =>
+      `<button class="chip ${c===activeCategory?'active':''}" data-category="${c}">${c}</button>`
+    ).join("");
+    document.querySelectorAll("[data-category]").forEach(b => b.onclick = () => {
+      activeCategory = b.dataset.category; renderCategories(); renderProducts();
+    });
+  }
+  function renderProducts() {
+    const query = document.getElementById("search").value.trim().toLowerCase();
+    const shown = products.filter(p => (activeCategory==="ყველა" || p.category===activeCategory) &&
+      (p.name.toLowerCase().includes(query) || p.desc.toLowerCase().includes(query)));
+    document.getElementById("products").innerHTML = shown.length ? shown.map(p => `
+      <article class="product">
+        <div class="photo" role="img" aria-label="${p.name}">${p.emoji}</div>
+        <div class="details">
+          <div class="name">${p.name}</div><div class="desc">${p.desc}</div>
+          <div class="price">${p.price} ₾</div>
+          <button class="add" data-add="${p.id}">კალათაში დამატება</button>
+        </div>
+      </article>`).join("") : `<div class="empty">ვერაფერი მოიძებნა.</div>`;
+    document.querySelectorAll("[data-add]").forEach(b => b.onclick = () => {
+      const id = Number(b.dataset.add); cart.set(id, (cart.get(id)||0)+1); renderCart();
+      if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred("light");
+    });
+  }
+  function renderCart() {
+    let count=0,total=0;
+    cart.forEach((qty,id)=>{ count+=qty; total+=qty*products.find(p=>p.id===id).price; });
+    document.getElementById("count").textContent=count;
+    document.getElementById("total").textContent=total+" ₾";
+  }
+  document.getElementById("search").addEventListener("input", renderProducts);
+  document.getElementById("cartButton").addEventListener("click", () => {
+    if (!cart.size) { alert("კალათა ჯერ ცარიელია. დაამატე ნივთი."); return; }
+    const lines = [...cart.entries()].map(([id,qty]) => {
+      const p=products.find(x=>x.id===id); return `${p.name} × ${qty} — ${p.price*qty} ₾`;
+    });
+    const total = [...cart.entries()].reduce((s,[id,qty])=>s+products.find(p=>p.id===id).price*qty,0);
+    alert("შენი კალათა:\\n\\n"+lines.join("\\n")+"\\n\\nჯამი: "+total+" ₾\\n\\nშემდეგ ეტაპზე დავაკავშირებთ შეკვეთების გაგზავნას.");
+  });
+  renderCategories(); renderProducts(); renderCart();
+</script>
+</body>
+</html>
